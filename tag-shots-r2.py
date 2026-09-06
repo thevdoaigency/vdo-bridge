@@ -4,7 +4,7 @@ import os, sys, json, base64, subprocess, time, tempfile
 import boto3
 from botocore.config import Config
 
-BUCKET   = os.environ.get("R2_BUCKET", "awc-library")
+BUCKET   = os.environ.get("R2_BUCKET", "vdo-library")
 ENDPOINT = os.environ.get("R2_ENDPOINT") or (
     "https://%s.r2.cloudflarestorage.com" % os.environ["R2_ACCOUNT_ID"]
     if os.environ.get("R2_ACCOUNT_ID") else None)

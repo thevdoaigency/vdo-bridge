@@ -8,7 +8,7 @@
 //   R2_ENDPOINT            https://<accountid>.r2.cloudflarestorage.com
 //                          (or set R2_ACCOUNT_ID and we build the URL)
 // Env (optional):
-//   R2_BUCKET              defaults to 'awc-library'
+//   R2_BUCKET              defaults to 'vdo-library'
 //
 // CLI:  node lb-r2.js test   → verify the connection
 //       node lb-r2.js list   → print the library
@@ -21,7 +21,7 @@ const {
   HeadBucketCommand,
 } = require('@aws-sdk/client-s3');
 
-const BUCKET   = process.env.R2_BUCKET || 'awc-library';
+const BUCKET   = process.env.R2_BUCKET || 'vdo-library';
 const ENDPOINT = process.env.R2_ENDPOINT ||
   (process.env.R2_ACCOUNT_ID
     ? 'https://' + process.env.R2_ACCOUNT_ID + '.r2.cloudflarestorage.com'

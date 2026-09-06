@@ -1,6 +1,6 @@
 // lb-r2-query.js — AWC Bridge: generate a narrative cut sourcing transcripts from R2.
 // Mirrors local-bridge.js's query flow, but loads each selected pair's .xml + .json
-// straight from the awc-library bucket instead of local disk. Reuses the proven
+// straight from the vdo-library bucket instead of local disk. Reuses the proven
 // generatePicks + buildMultiSourceXml from local-bridge.js. No local library needed.
 'use strict';
 
