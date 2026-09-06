@@ -1,0 +1,9 @@
+node_modules/
+*.log
+*.bak
+*.bak2
+*.bak-*
+/tmp/
+lb-media-cache/
+awc_cut_test.xml
+patch-*.js

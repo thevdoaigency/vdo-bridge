@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Local Bridge — The VDO Aigency</title>
+<style>
+  :root {
+    --gold: #e8b84b;
+    --black: #0b0b0b;
+    --cream: #ede9e3;
+    --muted: #7a7570;
+    --surface: #141414;
+    --surface2: #1c1c1c;
+    --border: #222;
+    --err: #c45a4a;
+    --ok: #4caf7d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--black);
+    color: var(--cream);
+    font-family: 'DM Sans', -apple-system, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  .wordmark { font-family: Georgia, serif; font-size: 22px; letter-spacing: 0.02em; }
+  .wordmark .a { font-style: italic; }
+  .v-mark {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px; background: var(--gold); color: var(--black);
+    border-radius: 6px; font-family: Georgia, serif; font-size: 26px; flex-shrink: 0;
+  }
+  header { border-bottom: 1px solid var(--surface); padding: 28px 48px; }
+  .header-inner { max-width: 1000px; margin: 0 auto; display: flex; align-items: center; gap: 16px; }
+  .header-tool { margin-left: auto; font-family: 'Courier New', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+
+  main { max-width: 1000px; margin: 0 auto; padding: 56px 48px 80px; }
+
+  h1 { font-family: Georgia, serif; font-size: 44px; font-weight: 400; line-height: 1.1; margin-bottom: 12px; }
+  .lede { color: var(--muted); font-size: 17px; max-width: 660px; margin-bottom: 52px; }
+  .rule { border: none; border-top: 1px solid var(--gold); width: 56px; margin: 0 0 52px; }
+
+  /* Two-column layout */
+  .layout { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; }
+  @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+
+  .panel-label {
+    font-family: 'Courier New', monospace; font-size: 10px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--gold); margin-bottom: 20px;
+  }
+
+  /* Upload panel */
+  .upload-form { display: flex; flex-direction: column; gap: 16px; }
+  .field label {
+    display: block; font-size: 12px; color: var(--muted);
+    letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 6px;
+  }
+  input[type=text], input[type=number] {
+    width: 100%; padding: 12px 14px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; color: var(--cream);
+    font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none;
+    transition: border-color 120ms;
+  }
+  input[type=text]:focus, input[type=number]:focus { border-color: var(--gold); }
+
+  .file-row {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; padding: 12px 14px; cursor: pointer;
+    transition: border-color 120ms;
+  }
+  .file-row:hover { border-color: #444; }
+  .file-row.has-file { border-color: var(--gold); }
+  .file-row input { display: none; }
+  .file-row .file-label { flex: 1; font-size: 14px; color: var(--cream); }
+  .file-row .file-type {
+    font-family: 'Courier New', monospace; font-size: 10px;
+    color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .file-row.has-file .file-type { color: var(--gold); }
+
+  .btn {
+    padding: 13px 24px; background: var(--gold); color: var(--black);
+    border: none; border-radius: 4px; font-family: 'DM Sans', sans-serif;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: opacity 120ms; letter-spacing: 0.02em;
+  }
+  .btn:hover:not(:disabled) { opacity: 0.85; }
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .btn-ghost {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--muted); font-size: 13px; padding: 10px 18px;
+  }
+  .btn-ghost:hover { border-color: #444; color: var(--cream); }
+
+  .upload-status {
+    font-family: 'Courier New', monospace; font-size: 12px;
+    padding: 10px 14px; border-radius: 4px; display: none;
+  }
+  .upload-status.ok  { display: block; background: rgba(76,175,125,0.1); color: var(--ok); border: 1px solid rgba(76,175,125,0.3); }
+  .upload-status.err { display: block; background: rgba(196,90,74,0.1); color: var(--err); border: 1px solid rgba(196,90,74,0.3); }
+
+  /* Library */
+  .library { margin-top: 32px; }
+  .lib-empty { font-size: 13px; color: var(--muted); font-style: italic; }
+  .project-block { margin-bottom: 20px; }
+  .project-name {
+    font-family: 'Courier New', monospace; font-size: 11px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--cream); margin-bottom: 8px;
+  }
+  .pair-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; background: var(--surface2);
+    border-radius: 4px; margin-bottom: 4px; cursor: pointer;
+    border: 1px solid transparent; transition: border-color 120ms;
+  }
+  .pair-row:hover { border-color: #333; }
+  .pair-row.selected { border-color: var(--gold); }
+  .pair-row input[type=checkbox] { accent-color: var(--gold); }
+  .pair-name { flex: 1; font-size: 13px; color: var(--cream); }
+  .pair-tags { display: flex; gap: 5px; }
+  .tag {
+    font-family: 'Courier New', monospace; font-size: 9px; letter-spacing: 0.08em;
+    text-transform: uppercase; padding: 2px 6px; border-radius: 2px;
+    background: #2a2a2a; color: var(--muted);
+  }
+  .tag.live { background: rgba(76,175,125,0.15); color: var(--ok); }
+
+  /* Query panel */
+  textarea {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; padding: 14px; color: var(--cream);
+    font-family: 'DM Sans', sans-serif; font-size: 14px; line-height: 1.6;
+    min-height: 140px; resize: vertical; outline: none; transition: border-color 120ms;
+  }
+  textarea:focus { border-color: var(--gold); }
+  textarea::placeholder { color: var(--muted); }
+
+  .target-row { display: flex; gap: 12px; align-items: center; }
+  .target-row input { width: 80px; }
+  .target-row span { font-size: 13px; color: var(--muted); }
+
+  /* Status + download */
+  .status-box {
+    margin-top: 32px; padding: 20px; background: var(--surface);
+    border-left: 2px solid var(--gold); border-radius: 2px; display: none;
+    font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.8;
+    color: var(--cream); white-space: pre-wrap;
+  }
+  .status-box.visible { display: block; }
+  .status-box.error { border-left-color: var(--err); color: var(--err); }
+
+  .download-box {
+    display: none; margin-top: 28px; padding: 28px;
+    background: var(--surface); border: 1px solid var(--gold); border-radius: 4px;
+  }
+  .download-box.visible { display: block; }
+  .download-box h3 { font-family: Georgia, serif; font-size: 18px; font-weight: 400; color: var(--gold); margin-bottom: 8px; }
+  .download-box p { color: var(--cream); font-size: 14px; margin-bottom: 20px; }
+  .download-box a {
+    display: inline-block; background: var(--gold); color: var(--black);
+    padding: 13px 24px; text-decoration: none; border-radius: 4px;
+    font-weight: 600; font-size: 14px;
+  }
+  .download-box a:hover { opacity: 0.85; }
+  .summary-block {
+    margin-top: 20px; padding-top: 20px; border-top: 1px solid #222;
+    font-family: 'Courier New', monospace; font-size: 11px;
+    color: var(--muted); line-height: 1.9; white-space: pre-wrap;
+  }
+  .summary-block .k { color: var(--cream); }
+
+  footer {
+    text-align: center; padding: 32px 48px; color: var(--muted);
+    font-size: 11px; font-family: 'Courier New', monospace; letter-spacing: 0.08em;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="v-mark">V</div>
+    <div class="wordmark">VDO <span class="a">Aigency</span></div>
+    <div class="header-tool">Local Bridge</div>
+  </div>
+</header>
+
+<main>
+  <h1>Local Bridge</h1>
+  <p class="lede">Upload interview pairs. Query across all of them. Get a Premiere-ready XML back.</p>
+  <hr class="rule">
+
+  <div class="layout">
+
+    <!-- LEFT: Upload + Library -->
+    <div>
+      <div class="panel-label">01 — Library</div>
+
+      <div class="upload-form">
+        <div class="field">
+          <label>Project Name</label>
+          <input type="text" id="project-name" placeholder="e.g. Speedway Indiana">
+        </div>
+        <div class="field">
+          <label>Source XML (FCP7 from Premiere)</label>
+          <div class="file-row" id="xml-row">
+            <input type="file" id="xml-file" accept=".xml">
+            <div class="file-label" id="xml-label">Click to select XML</div>
+            <div class="file-type" id="xml-type">xml</div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Transcript JSON (word-level timing)</label>
+          <div class="file-row" id="json-row">
+            <input type="file" id="json-file" accept=".json">
+            <div class="file-label" id="json-label">Click to select JSON</div>
+            <div class="file-type" id="json-type">json</div>
+          </div>
+        </div>
+        <button class="btn" id="upload-btn" disabled>Add to Library</button>
+        <div class="upload-status" id="upload-status"></div>
+      </div>
+
+      <div class="library" id="library-panel">
+        <div style="height:24px"></div>
+        <div class="panel-label">Loaded Interviews</div>
+        <div id="library-list"><div class="lib-empty">No interviews loaded yet.</div></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Query -->
+    <div>
+      <div class="panel-label">02 — Query</div>
+
+      <div class="field" style="margin-bottom:16px;">
+        <label>What are you looking for?</label>
+        <textarea id="brief" placeholder="Give me a 60-second edit about the wastewater generator in Speedway, Indiana. Lead with the problem, close with the solution. Pull the most specific technical detail each subject mentions."></textarea>
+      </div>
+
+      <div class="field" style="margin-bottom:24px;">
+        <label>Target Runtime</label>
+        <div class="target-row">
+          <input type="number" id="target-min" value="1" min="0.5" max="30" step="0.5">
+          <span>minutes</span>
+        </div>
+      </div>
+
+      <button class="btn" id="query-btn" disabled>Generate Cut</button>
+
+      <div class="status-box" id="status-box"></div>
+      <div class="download-box" id="download-box">
+        <h3>Cut ready</h3>
+        <p>Import into Premiere. Relink source files if prompted.</p>
+        <a id="download-link" href="#" download="">Download XML</a>
+        <a id="render-btn" href="#" style="margin-left:12px;">Render MP4</a>
+        <p id="render-status" style="display:none; margin-top:14px;"></p>
+        <a id="render-download" href="#" style="display:none; margin-top:6px;">Download MP4</a>
+        <div class="summary-block" id="summary-block"></div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<footer>The VDO Aigency · Local Bridge · runs on local inference</footer>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+const state = {
+  xmlFile: null,
+  jsonFile: null,
+  library: [],      // [{project, dir, pairs:[{name,xml,json}]}]
+  selectedProject: null,
+  selectedFiles: new Set(),
+};
+
+// ── File inputs ────────────────────────────────────────────────────────────
+function wireFile(rowId, inputId, labelId, typeId, key) {
+  const row = document.getElementById(rowId);
+  const input = document.getElementById(inputId);
+  row.addEventListener('click', () => input.click());
+  input.addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    state[key] = f;
+    document.getElementById(labelId).textContent = f.name;
+    document.getElementById(typeId).textContent = f.name.split('.').pop().toUpperCase();
+    row.classList.add('has-file');
+    checkUploadReady();
+  });
+}
+
+wireFile('xml-row',  'xml-file',  'xml-label',  'xml-type',  'xmlFile');
+wireFile('json-row', 'json-file', 'json-label', 'json-type', 'jsonFile');
+document.getElementById('project-name').addEventListener('input', checkUploadReady);
+
+function checkUploadReady() {
+  const ok = state.xmlFile && state.jsonFile && document.getElementById('project-name').value.trim();
+  document.getElementById('upload-btn').disabled = !ok;
+}
+
+// ── Upload ─────────────────────────────────────────────────────────────────
+document.getElementById('upload-btn').addEventListener('click', async () => {
+  const project = document.getElementById('project-name').value.trim();
+  const statusEl = document.getElementById('upload-status');
+  statusEl.className = 'upload-status';
+  statusEl.textContent = 'Uploading…';
+  statusEl.style.display = 'block';
+  document.getElementById('upload-btn').disabled = true;
+
+  try {
+    const fd = new FormData();
+    fd.append('project', project);
+    fd.append('xml', state.xmlFile, state.xmlFile.name);
+    fd.append('json', state.jsonFile, state.jsonFile.name);
+
+    const r = await fetch('/local-bridge/upload', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Upload failed');
+
+    statusEl.className = 'upload-status ok';
+    statusEl.textContent = '✓ Added: ' + d.name + ' → ' + d.project;
+
+    // Reset file inputs
+    state.xmlFile = null; state.jsonFile = null;
+    document.getElementById('xml-label').textContent = 'Click to select XML';
+    document.getElementById('json-label').textContent = 'Click to select JSON';
+    document.getElementById('xml-type').textContent = 'xml';
+    document.getElementById('json-type').textContent = 'json';
+    document.getElementById('xml-row').classList.remove('has-file');
+    document.getElementById('json-row').classList.remove('has-file');
+
+    await loadLibrary();
+  } catch(err) {
+    statusEl.className = 'upload-status err';
+    statusEl.textContent = '✗ ' + err.message;
+  } finally {
+    checkUploadReady();
+  }
+});
+
+// ── Library ────────────────────────────────────────────────────────────────
+async function loadLibrary() {
+  const r = await fetch('/local-bridge/library');
+  const d = await r.json();
+  state.library = d.library || [];
+  renderLibrary();
+  checkQueryReady();
+}
+
+function renderLibrary() {
+  const el = document.getElementById('library-list');
+  if (!state.library.length) {
+    el.innerHTML = '<div class="lib-empty">No interviews loaded yet.</div>';
+    return;
+  }
+  el.innerHTML = '';
+  for (const proj of state.library) {
+    const block = document.createElement('div');
+    block.className = 'project-block';
+    block.innerHTML = '<div class="project-name">' + escHtml(proj.project) + '</div>';
+    for (const pair of proj.pairs) {
+      const row = document.createElement('div');
+      row.className = 'pair-row';
+      const isChecked = state.selectedFiles.has(pair.name);
+      row.innerHTML = `
+        <input type="checkbox" ${isChecked ? 'checked' : ''} data-project="${escHtml(proj.dir)}" data-name="${escHtml(pair.name)}">
+        <div class="pair-name">${escHtml(friendlyName(pair.name))}</div>
+        <div class="pair-tags">
+          ${pair.xml  ? '<span class="tag live">XML</span>'  : '<span class="tag">XML</span>'}
+          ${pair.json ? '<span class="tag live">JSON</span>' : '<span class="tag">JSON</span>'}
+        </div>`;
+      if (isChecked) row.classList.add('selected');
+      const cb = row.querySelector('input[type=checkbox]');
+      cb.addEventListener('change', () => {
+        state.selectedProject = proj.dir;
+        if (cb.checked) { state.selectedFiles.add(pair.name); row.classList.add('selected'); }
+        else { state.selectedFiles.delete(pair.name); row.classList.remove('selected'); }
+        checkQueryReady();
+      });
+      block.appendChild(row);
+    }
+    el.appendChild(block);
+  }
+}
+
+function friendlyName(filename) {
+  // YYMMDD_Location_Subject_Interview_Cam → Subject · Location
+  const parts = filename.split('_');
+  if (parts.length >= 3) {
+    const subject = parts[2] || parts[1];
+    const cam = parts[parts.length - 1] || '';
+    return subject + (cam ? ' · ' + cam : '');
+  }
+  return filename;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Query ──────────────────────────────────────────────────────────────────
+document.getElementById('brief').addEventListener('input', checkQueryReady);
+
+function checkQueryReady() {
+  const hasBrief = document.getElementById('brief').value.trim().length > 0;
+  const hasFiles = state.selectedFiles.size > 0;
+  document.getElementById('query-btn').disabled = !(hasBrief && hasFiles);
+}
+
+function setStatus(msg, isError = false) {
+  const el = document.getElementById('status-box');
+  el.textContent = msg;
+  el.className = 'status-box visible' + (isError ? ' error' : '');
+}
+function appendStatus(msg) {
+  document.getElementById('status-box').textContent += '\n' + msg;
+}
+
+// Parse a response as JSON; if Cloudflare's Access gate answered with its HTML
+// login page instead (expired session), say so instead of a JSON parse error.
+async function safeJson(r) {
+  const text = await r.text();
+  try { return JSON.parse(text); }
+  catch (e) {
+    if (text.slice(0, 200).toLowerCase().includes('<!doctype') || text.slice(0, 200).includes('<html')) {
+      throw new Error('Session expired — refresh this page and sign back in through the email gate.');
+    }
+    throw new Error('Unexpected response from server (' + r.status + ')');
+  }
+}
+window.lbSafeJson = safeJson;
+
+document.getElementById('query-btn').addEventListener('click', async () => {
+  document.getElementById('query-btn').disabled = true;
+  document.getElementById('download-box').classList.remove('visible');
+
+  setStatus('Sending ' + state.selectedFiles.size + ' interview(s) to the local model…');
+  appendStatus('Reading transcripts and drafting picks.');
+  appendStatus('This can take several minutes — leave this page open.');
+
+  try {
+    const target = parseFloat(document.getElementById('target-min').value) || 1;
+    const brief = document.getElementById('brief').value.trim();
+
+    const startRes = await fetch('/local-bridge/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        project: state.selectedProject,
+        brief,
+        targetMinutes: target,
+        selectedFiles: Array.from(state.selectedFiles),
+      }),
+    });
+    const started = await safeJson(startRes);
+    if (!startRes.ok || !started.ok) throw new Error(started.error || 'Server error ' + startRes.status);
+
+    // Poll until the model finishes — each poll is a fast request, so the
+    // Cloudflare tunnel's ~100s request limit never comes into play.
+    const data = await new Promise((resolve, reject) => {
+      const t0 = Date.now();
+      const timer = setInterval(async () => {
+        try {
+          const pr = await fetch('/local-bridge/query/status?id=' + started.jobId);
+          const j  = await safeJson(pr);
+          if (j.status === 'running') {
+            setStatus('Model working… ' + Math.round((Date.now() - t0) / 1000) + 's elapsed.');
+            return;
+          }
+          clearInterval(timer);
+          if (j.status === 'done') resolve(j.result);
+          else reject(new Error(j.error || 'Query failed'));
+        } catch (err) {
+          clearInterval(timer);
+          reject(err);
+        }
+      }, 3000);
+    });
+
+    const s = data.summary;
+    const secs = s.runtimeSeconds;
+    const mins = Math.floor(secs / 60);
+    const rem  = (secs % 60).toFixed(2);
+    appendStatus('');
+    appendStatus('✓ Cut built: ' + mins + ':' + String(rem).padStart(5,'0'));
+    appendStatus('✓ ' + s.pickCount + ' picks across ' + (s.sources || []).length + ' source(s)');
+
+    const blob = new Blob([data.xml], { type: 'application/xml' });
+    const url  = URL.createObjectURL(blob);
+    const downloadName = (s.title || 'local-bridge-cutdown').replace(/[^a-zA-Z0-9_\- ]/g,'') + '.xml';
+    const link = document.getElementById('download-link');
+    link.href = url;
+    link.download = downloadName;
+    document.getElementById('download-box').classList.add('visible');
+    window.lbRenderData = { xml: data.xml, name: downloadName.replace(/\.xml$/, '') };
+    document.getElementById('render-status').style.display = 'none';
+    document.getElementById('render-download').style.display = 'none';
+    document.getElementById('render-btn').style.display = '';
+
+    const tMins = Math.floor(s.targetSeconds / 60);
+    const tRem  = String(Math.round(s.targetSeconds % 60)).padStart(2,'0');
+    const delta = secs - s.targetSeconds;
+    const deltaStr = (delta >= 0 ? '+' : '−') + Math.abs(delta).toFixed(1) + 's';
+
+    const trackLines = Object.entries(s.tracks || {})
+      .sort(([a],[b]) => a.localeCompare(b))
+      .map(([tn,t]) => '  ' + tn + ': ' + t.clipCount + ' clips, ' + t.seconds.toFixed(1) + 's')
+      .join('\n');
+
+    const sourceLines = (s.sources || []).map(f => '  ' + f).join('\n');
+
+    document.getElementById('summary-block').innerHTML =
+      '<span class="k">TARGET</span>      ' + tMins + ':' + tRem + '\n' +
+      '<span class="k">RUNTIME</span>     ' + mins + ':' + String(rem).padStart(5,'0') + '  (' + deltaStr + ')\n' +
+      '<span class="k">PICKS</span>       ' + s.pickCount + '\n' +
+      '<span class="k">MODEL</span>       ' + (s.model || 'openai') + '\n' +
+      '<span class="k">FPS</span>         ' + (s.fps || '').toFixed(4) + '\n' +
+      '<span class="k">SOURCES</span>\n' + sourceLines + '\n\n' +
+      '<span class="k">TRACKS</span>\n' + trackLines;
+
+  } catch(err) {
+    console.error(err);
+    setStatus('Error: ' + err.message, true);
+  } finally {
+    checkQueryReady();
+  }
+});
+
+// ── Init ───────────────────────────────────────────────────────────────────
+loadLibrary();
+</script>
+<script>
+(function () {
+  var btn    = document.getElementById('render-btn');
+  var status = document.getElementById('render-status');
+  var dl     = document.getElementById('render-download');
+  var timer  = null;
+
+  btn.addEventListener('click', function (e) {
+    e.preventDefault();
+    if (!window.lbRenderData) return;
+    btn.style.display = 'none';
+    dl.style.display = 'none';
+    status.style.display = 'block';
+    status.textContent = 'Starting render\u2026';
+    fetch('/local-bridge/render', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(window.lbRenderData)
+    })
+    .then(function (r) { return window.lbSafeJson(r); })
+    .then(function (j) {
+      if (!j.ok) throw new Error(j.error || 'Render failed to start');
+      poll(j.jobId);
+    })
+    .catch(function (err) {
+      status.textContent = 'Render error: ' + err.message;
+      btn.style.display = '';
+    });
+  });
+
+  function poll(id) {
+    clearInterval(timer);
+    var t0 = Date.now();
+    timer = setInterval(function () {
+      fetch('/local-bridge/render/status?id=' + id)
+      .then(function (r) { return window.lbSafeJson(r); })
+      .then(function (j) {
+        if (j.status === 'running') {
+          status.textContent = 'Rendering\u2026 ' + Math.round((Date.now() - t0) / 1000) + 's';
+        } else if (j.status === 'done') {
+          clearInterval(timer);
+          status.textContent = 'Render complete \u2014 ' + (j.sizeBytes / 1048576).toFixed(0) + ' MB';
+          dl.href = '/local-bridge/render/download?id=' + id;
+          dl.style.display = 'inline-block';
+        } else {
+          clearInterval(timer);
+          status.textContent = 'Render failed: ' + String(j.log || j.error || 'unknown error').slice(0, 300);
+          btn.style.display = '';
+        }
+      })
+      .catch(function (err) {
+        clearInterval(timer);
+        status.textContent = 'Status check failed: ' + err.message;
+        btn.style.display = '';
+      });
+    }, 3000);
+  }
+})();
+</script>
+</body>
+</html>

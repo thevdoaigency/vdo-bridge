@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VDO Bridge — Search your footage</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0b0b; --sheet:#121110; --card:#141312;
+    --ink:#ede9e3; --head:#ffffff; --sub:#6f6a63; --line:#241f1a;
+    --dark:#e8b84b; --dark-hi:#f2c65e;
+    --gold:#e8b84b; --gold-hi:#f2c65e; --gold-deep:#e8b84b;
+    --chip:#1a1815; --shadow:none; --radius:0px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{background:var(--bg);color:var(--ink);font-family:'DM Sans',system-ui,sans-serif;font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;min-height:100vh;}
+  h1,h2{font-family:Georgia,serif;font-weight:400;}
+  a{color:var(--dark);}
+
+  /* White header band — logo blends on white */
+  header{background:#0b0b0b;border-bottom:1px solid var(--gold);}
+  .header-inner{max-width:1040px;margin:0 auto;padding:18px 32px;display:flex;align-items:center;gap:18px;}
+  .header-tag{margin-left:auto;font-family:'DM Mono',monospace;font-size:15px;font-weight:600;color:var(--head);text-align:right;}
+  .header-tag .by{display:block;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:400;color:var(--sub);letter-spacing:.02em;margin-top:3px;}
+
+  main{max-width:1040px;margin:0 auto;padding:40px 32px 60px;}
+  .lede{color:var(--sub);font-size:15px;max-width:640px;margin-bottom:36px;}
+  .rule{display:none;}
+  .layout{display:grid;grid-template-columns:1fr 1fr;gap:44px;align-items:start;}
+  @media (max-width:820px){.layout{grid-template-columns:1fr;}}
+  .panel-label{font-family:'DM Mono',monospace;font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--gold-deep);margin-bottom:18px;}
+
+  .field{margin-bottom:16px;}
+  .field.dimmed{opacity:.35;pointer-events:none;}
+  .mode-row{display:flex;gap:22px;}
+  .mode-opt{display:flex;align-items:center;gap:8px;font-family:'DM Mono',monospace;font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--sub);cursor:pointer;}
+  .mode-opt input{accent-color:var(--gold);width:14px;height:14px;}
+  .mode-opt input:checked+span{color:var(--head);}
+  .field label{display:block;font-family:'DM Mono',monospace;font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--sub);margin-bottom:6px;}
+  textarea,input[type=number],input[type=text]{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);color:var(--ink);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color 120ms;}
+  textarea{width:100%;padding:13px 14px;line-height:1.6;min-height:150px;resize:vertical;}
+  textarea:focus,input:focus{border-color:var(--dark);}
+  textarea::placeholder,input::placeholder{color:#A8A79A;}
+  input[type=number],input[type=text]{padding:11px 13px;}
+  input[type=number]{width:90px;}
+  .target-row{display:flex;gap:12px;align-items:center;}
+  .target-row span{font-size:13px;color:var(--sub);}
+
+  /* Buttons — wordmark near-black */
+  .btn{padding:12px 22px;background:var(--gold);color:#0b0b0b;border:none;border-radius:var(--radius);font-family:'DM Mono',monospace;font-size:13px;font-weight:600;letter-spacing:.03em;cursor:pointer;transition:background 120ms;}
+  .btn:hover:not(:disabled){background:var(--dark-hi);}
+  .btn:disabled{opacity:.35;cursor:not-allowed;}
+
+  .broll-bar{display:flex;gap:10px;align-items:stretch;margin-bottom:8px;}
+  .broll-bar input[type=text]{flex:1;}
+  .broll-filters{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+  .broll-filters input.city{width:160px;} .broll-filters input.date{width:140px;}
+  .broll-hint{font-size:12px;color:var(--sub);margin-bottom:20px;}
+  .broll-note{font-size:12px;color:var(--gold-deep);font-style:italic;margin:2px 0 16px;}
+  .broll-empty{font-size:13px;color:var(--sub);font-style:italic;}
+
+  .clip-group{margin-bottom:24px;}
+  .clip-head{font-family:'DM Mono',monospace;font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--head);padding-bottom:6px;border-bottom:1px solid var(--gold);margin-bottom:10px;display:flex;align-items:baseline;gap:10px;}
+  .clip-head .loc{font-family:'DM Sans',sans-serif;font-weight:400;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--sub);}
+  .clip-head .n{margin-left:auto;font-weight:400;font-size:11px;color:var(--sub);}
+  .clip-head a.reel-dl-link{font-family:'DM Sans',sans-serif;font-weight:400;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--sub);text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:1px;white-space:nowrap;transition:color 120ms,border-color 120ms;}
+  .clip-head a.reel-dl-link:hover{color:var(--gold);border-bottom-color:var(--gold);}
+  .pair-thumb{width:64px;aspect-ratio:16/9;object-fit:cover;flex:none;background:var(--chip);display:block;border-radius:var(--radius);}
+  .shot-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+  @media (max-width:820px){.shot-grid{grid-template-columns:1fr 1fr;}}
+  .shot-card{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;cursor:pointer;background:var(--card);transition:border-color 120ms,box-shadow 120ms;position:relative;}
+  .shot-card:hover{border-color:#CFCDBC;box-shadow:var(--shadow);}
+  .shot-card.sel{border-color:var(--gold);box-shadow:inset 0 0 0 2px var(--gold);}
+  .shot-thumb{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#EAE9DF;}
+  .shot-card.sel::after{content:'✓';position:absolute;top:6px;right:6px;width:20px;height:20px;line-height:20px;text-align:center;background:var(--gold);color:#FFFFFF;border-radius:50%;font-size:12px;font-weight:700;}
+  .shot-body{padding:8px 10px;}
+  .shot-tc{font-family:'DM Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.03em;color:var(--gold-deep);}
+  .shot-subj{font-size:12px;color:var(--ink);line-height:1.35;margin-top:2px;}
+  .shot-score{font-size:10px;color:var(--sub);margin-top:3px;}
+
+  .broll-actions{display:none;align-items:center;gap:16px;margin-top:22px;padding-top:18px;border-top:1px solid var(--line);flex-wrap:wrap;}
+  .broll-actions.on{display:flex;}
+  .broll-actions .sel-n{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--gold-deep);}
+  .section-divider{border:none;border-top:1px solid var(--line);margin:44px 0;}
+
+  .lib-loading,.lib-empty{font-size:13px;color:var(--sub);font-style:italic;}
+  .company-block{margin-bottom:10px;}
+  .company-name{font-family:'DM Mono',monospace;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--head);padding:9px 4px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;align-items:center;gap:8px;user-select:none;}
+  .company-name:hover{color:var(--gold-deep);}
+  .company-name .caret{font-size:9px;color:var(--gold);transition:transform 120ms;display:inline-block;}
+  .company-block.open .company-name .caret{transform:rotate(90deg);}
+  .company-count{margin-left:auto;font-weight:400;font-size:11px;color:var(--sub);}
+  .company-rows{display:none;padding-top:8px;}
+  .company-block.open .company-rows{display:block;}
+  .pair-row{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:4px;cursor:pointer;transition:border-color 120ms;}
+  .pair-row:hover{border-color:#CFCDBC;}
+  .pair-row.selected{border-color:var(--gold);box-shadow:inset 0 0 0 2px var(--gold);}
+  .pair-row input[type=checkbox]{accent-color:var(--dark);width:16px;height:16px;}
+  .pair-name{flex:1;font-size:13px;color:var(--ink);}
+  .pair-stem{font-size:10px;color:var(--sub);margin-top:1px;}
+  .selcount{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--sub);margin:10px 0 20px;}
+
+  .status-box{margin-top:24px;padding:18px;background:var(--card);border:1px solid var(--line);border-left:2px solid var(--dark);border-radius:var(--radius);display:none;font-size:13px;line-height:1.7;color:var(--ink);white-space:pre-wrap;box-shadow:var(--shadow);}
+  .status-box.visible{display:block;}
+  .status-box.error{border-left-color:#B4472F;color:#B4472F;}
+  .result-box{display:none;margin-top:24px;padding:26px;background:var(--card);border:1px solid var(--line);border-top:2px solid var(--gold);border-radius:var(--radius);box-shadow:var(--shadow);}
+  .result-box.visible{display:block;}
+  .result-box h3{font-family:'DM Mono',monospace;font-size:17px;font-weight:600;color:var(--head);margin-bottom:6px;}
+  .result-box p{color:var(--sub);font-size:13px;margin-bottom:18px;}
+  .dl{display:inline-block;background:var(--gold);color:#0b0b0b;padding:11px 20px;text-decoration:none;border:none;border-radius:var(--radius);font-family:'DM Mono',monospace;font-weight:600;font-size:13px;cursor:pointer;}
+  .dl:hover{background:var(--dark-hi);}
+  .render-status{display:none;margin-top:14px;font-size:12.5px;color:var(--sub);}
+  .summary-block{margin-top:18px;padding-top:18px;border-top:1px solid var(--line);font-size:12px;color:var(--sub);line-height:1.9;white-space:pre-wrap;}
+  .summary-block .k{font-family:'DM Mono',monospace;color:var(--gold-deep);font-weight:600;letter-spacing:.04em;}
+  .vdo-mark{font-family:Georgia,serif;font-size:26px;color:var(--ink);letter-spacing:.2px;}
+  .vdo-mark em{color:var(--gold);font-style:italic;}
+  .try{margin:10px 0 0;display:flex;gap:18px;flex-wrap:wrap;align-items:baseline;font-family:'DM Mono',monospace;font-size:12px;color:var(--sub);}
+  .try button{background:none;border:0;padding:0;font:inherit;color:var(--sub);cursor:pointer;border-bottom:1px dotted #3a352f;}
+  .try button:hover{color:var(--gold);border-bottom-color:var(--gold);}
+  footer{max-width:1040px;margin:0 auto;padding:20px 32px 44px;font-size:12px;color:var(--sub);}
+</style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <div class="vdo-mark">VDO <em>Bridge</em></div>
+    <div class="header-tag">Search your footage <span class="by">The VDO Aigency</span></div>
+  </div>
+</header>
+<main>
+  <p class="lede">Describe the shot you need. Every clip is split into shots and described, so search finds what's on screen — not what's in the filename.</p>
+  <hr class="rule">
+
+  <div class="panel-label">01 — Find b-roll</div>
+  <div class="broll-bar">
+    <input type="text" id="broll-q" placeholder="Describe the shot you need">
+    <button class="btn" id="broll-btn">Search shots</button>
+  </div>
+  <div class="broll-filters">
+    <input type="text" class="city" id="broll-city" placeholder="City (optional)">
+    <input type="text" class="date" id="broll-date" placeholder="Date e.g. 2026-07">
+  </div>
+  <div class="try">
+    <span>Try:</span>
+    <button data-q="drone shot of the lake at Da Lat">drone shot of the lake at Da Lat</button>
+    <button data-q="the light going gold over the water">the light going gold over the water</button>
+    <button data-q="something that feels like arriving somewhere">feels like arriving somewhere</button>
+  </div>
+  <div class="broll-hint">Every shot, described and searchable — or leave the box blank to browse the whole library. Filter by city or date to narrow.</div>
+  <div class="broll-note" id="broll-note" style="display:none;"></div>
+  <div id="broll-results"></div>
+  <div class="broll-actions" id="broll-actions">
+    <span class="sel-n" id="broll-seln">0 shots selected</span>
+    <button class="btn" id="broll-assemble">Assemble b-roll cut</button>
+  </div>
+  <div class="result-box" id="broll-result">
+    <h3>B-roll cut ready</h3>
+    <p>Import the XML into Premiere (relink if prompted), or render the MP4 here.</p>
+    <a class="dl" id="broll-xml-dl" href="#" download="">Download XML</a>
+    <button class="dl" id="broll-render-btn" style="margin-left:10px;">Make MP4</button>
+    <div class="render-status" id="broll-render-status"></div>
+    <div class="summary-block" id="broll-summary"></div>
+  </div>
+
+  <hr class="section-divider">
+
+  <div class="panel-label" style="margin-bottom:24px;">02 — Build a narrative</div>
+  <div class="layout">
+    <div>
+      <div class="panel-label">Interviews</div>
+      <div id="library-list"><div class="lib-loading">Loading library from R2…</div></div>
+      <div class="selcount" id="selcount"></div>
+    </div>
+    <div>
+      <div class="panel-label">Brief</div>
+      <div class="field">
+        <label>Approach</label>
+        <div class="mode-row">
+          <label class="mode-opt"><input type="radio" name="cutmode" value="composed" checked><span>Composed cut</span></label>
+          <label class="mode-opt"><input type="radio" name="cutmode" value="whole"><span>The whole interview</span></label>
+        </div>
+      </div>
+      <div class="field" id="brief-field">
+        <label>What's the story?</label>
+        <textarea id="brief" placeholder="A 60-second cut about the Cleveland police station project. Lead with the challenge, close with the outcome. Pull the most specific detail each PM gives."></textarea>
+      </div>
+      <div class="field" id="length-field">
+        <label>Target length</label>
+        <div class="target-row">
+          <input type="number" id="target-min" value="1" min="0.5" max="30" step="0.5">
+          <span>minutes</span>
+        </div>
+      </div>
+      <button class="btn" id="generate-btn" disabled>Generate Cut</button>
+      <div class="status-box" id="status-box"></div>
+
+      <div class="result-box" id="result-box">
+        <h3>Cut ready</h3>
+        <p>Import the XML into Premiere (relink if prompted), or render the MP4 here.</p>
+        <a class="dl" id="xml-dl" href="#" download="">Download XML</a>
+        <button class="dl" id="render-btn" style="margin-left:10px;">Make MP4</button>
+        <div class="render-status" id="render-status"></div>
+        <div class="summary-block" id="summary-block"></div>
+      </div>
+    </div>
+  </div>
+</main>
+<footer>The VDO Aigency · VDO Bridge</footer>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────
+const COMPANY = 'VDO';   // library prefix this instance may see. Nothing else is reachable.
+// ────────────────────────────────────────────────────────
+const state = { library: [], selected: new Set(), xml: null, xmlName: null };
+
+async function safeJson(r){
+  const t = await r.text();
+  try { return JSON.parse(t); }
+  catch(e){
+    if (t.slice(0,200).toLowerCase().includes('<!doctype') || t.slice(0,200).includes('<html'))
+      throw new Error('Session expired — refresh and sign back in through the email gate.');
+    throw new Error('Unexpected response from server ('+r.status+')');
+  }
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+async function loadLibrary(){
+  const el = document.getElementById('library-list');
+  try{
+    const r = await fetch('/local-bridge/r2-library');
+    const d = await safeJson(r);
+    if(!d.ok) throw new Error(d.error||'Library load failed');
+    state.library = (d.library||[]).filter(i=>i.transcribed);
+    renderLibrary();
+  }catch(err){
+    el.innerHTML = '<div class="lib-empty">'+esc(err.message)+'</div>';
+  }
+}
+
+function renderLibrary(){
+  const el = document.getElementById('library-list');
+  if(!state.library.length){ el.innerHTML='<div class="lib-empty">No transcribed interviews in the library yet.</div>'; return; }
+  const byCo = {};
+    state.library = state.library.filter(it => String(it.stem||it.clip||'').split('_')[1] === COMPANY);
+  for(const it of state.library){ (byCo[it.companyName||it.company||'Other'] ||= []).push(it); }
+  el.innerHTML='';
+  for(const co of Object.keys(byCo).sort()){
+    const block=document.createElement('div'); block.className='company-block';
+    const header=document.createElement('div'); header.className='company-name';
+    header.innerHTML='<span class="caret">\u25B8</span>'+esc(co)+'<span class="company-count">'+byCo[co].length+'</span>';
+    header.addEventListener('click',()=>block.classList.toggle('open'));
+    block.appendChild(header);
+    const rowsWrap=document.createElement('div'); rowsWrap.className='company-rows';
+    for(const it of byCo[co]){
+      const row=document.createElement('div'); row.className='pair-row'+(state.selected.has(it.stem)?' selected':'');
+      const thumbKey=(String(it.stem||'').split('_')[1]||COMPANY)+'/'+it.stem+'.frame.jpg';
+      row.innerHTML='<input type="checkbox" '+(state.selected.has(it.stem)?'checked':'')+'>'+
+        '<img class="pair-thumb" loading="lazy" src="/local-bridge/r2-broll/thumb?key='+encodeURIComponent(thumbKey)+'" onerror="this.remove()">'+
+        '<div class="pair-name">'+esc(it.label||it.stem)+'<div class="pair-stem">'+esc(it.stem)+'</div></div>';
+      const cb=row.querySelector('input');
+      const toggle=()=>{ if(cb.checked){state.selected.add(it.stem);row.classList.add('selected');} else {state.selected.delete(it.stem);row.classList.remove('selected');} updateSel(); };
+      cb.addEventListener('change',toggle);
+      row.addEventListener('click',e=>{ if(e.target!==cb){ cb.checked=!cb.checked; toggle(); } });
+      rowsWrap.appendChild(row);
+    }
+    block.appendChild(rowsWrap);
+    el.appendChild(block);
+  }
+  updateSel();
+}
+function updateSel(){
+  document.getElementById('selcount').textContent = state.selected.size ? state.selected.size+' selected' : '';
+  checkReady();
+}
+function cutMode(){ var r=document.querySelector('input[name="cutmode"]:checked'); return r && r.value==='whole' ? 'whole' : 'composed'; }
+function checkReady(){
+  document.getElementById('generate-btn').disabled = !(state.selected.size>0 && (cutMode()==='whole' || document.getElementById('brief').value.trim()));
+}
+document.querySelectorAll('input[name="cutmode"]').forEach(function(r){
+  r.addEventListener('change', function(){
+    var whole = cutMode()==='whole';
+    document.getElementById('brief-field').classList.toggle('dimmed', whole);
+    document.getElementById('length-field').classList.toggle('dimmed', whole);
+    checkReady();
+  });
+});
+document.getElementById('brief').addEventListener('input',checkReady);
+
+function setStatus(msg,isErr){ const el=document.getElementById('status-box'); el.textContent=msg; el.className='status-box visible'+(isErr?' error':''); }
+function addStatus(msg){ document.getElementById('status-box').textContent += '\n'+msg; }
+
+async function pollJob(statusUrl, onTick){
+  return new Promise((resolve,reject)=>{
+    const t0=Date.now();
+    const timer=setInterval(async()=>{
+      try{
+        const r=await fetch(statusUrl); const j=await safeJson(r);
+        if(j.status==='running'){ onTick && onTick(Math.round((Date.now()-t0)/1000)); return; }
+        clearInterval(timer);
+        if(j.status==='done') resolve(j);
+        else reject(new Error(j.error||(j.log?('Render failed: '+j.log.slice(-300)):'Job failed')));
+      }catch(e){ clearInterval(timer); reject(e); }
+    },3000);
+  });
+}
+
+document.getElementById('generate-btn').addEventListener('click', async ()=>{
+  document.getElementById('generate-btn').disabled=true;
+  document.getElementById('result-box').classList.remove('visible');
+  setStatus(cutMode()==='whole' ? 'Assembling the whole interview — no model needed…' : 'Sending '+state.selected.size+' interview(s) to the local model…');
+  addStatus('Reading transcripts from R2 and drafting picks. This can take a few minutes.');
+  try{
+    const brief=document.getElementById('brief').value.trim();
+    const target=parseFloat(document.getElementById('target-min').value)||1;
+    const sr=await fetch('/local-bridge/r2-query',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({brief,targetMinutes:target,selectedFiles:Array.from(state.selected),wholeInterview:cutMode()==='whole'})});
+    const started=await safeJson(sr);
+    if(!sr.ok||!started.ok) throw new Error(started.error||'Server error '+sr.status);
+    const done=await pollJob('/local-bridge/r2-query/status?id='+started.jobId, s=>setStatus('Model working… '+s+'s elapsed.'));
+    const res=done.result, s=res.summary;
+    state.xml=res.xml;
+    state.xmlName=(s.title||'vdo-bridge-cut').replace(/[^a-zA-Z0-9_\- ]/g,'').trim().replace(/\s+/g,'_')||'vdo-bridge-cut';
+    const secs=s.runtimeSeconds, mm=Math.floor(secs/60), ss=(secs%60).toFixed(1);
+    setStatus('✓ Cut built: '+mm+':'+String(ss).padStart(4,'0'));
+    addStatus('✓ '+s.pickCount+' picks across '+(s.sources||[]).length+' source(s)');
+    const blob=new Blob([res.xml],{type:'application/xml'});
+    const xl=document.getElementById('xml-dl'); xl.href=URL.createObjectURL(blob); xl.download=state.xmlName+'.xml';
+    document.getElementById('result-box').classList.add('visible');
+    document.getElementById('render-status').style.display='none';
+    document.getElementById('render-btn').style.display='';
+    document.getElementById('summary-block').innerHTML=
+      '<span class="k">RUNTIME</span>  '+mm+':'+String(ss).padStart(4,'0')+'\n'+
+      '<span class="k">PICKS</span>    '+s.pickCount+'\n'+
+      '<span class="k">MODEL</span>    '+esc(s.model||'gpt-oss:120b')+'\n'+
+      '<span class="k">SOURCES</span>\n'+(s.sources||[]).map(x=>'  '+esc(x)).join('\n');
+  }catch(err){ setStatus('Error: '+err.message,true); }
+  finally{ checkReady(); }
+});
+
+document.getElementById('render-btn').addEventListener('click', async ()=>{
+  if(!state.xml) return;
+  const btn=document.getElementById('render-btn'), rs=document.getElementById('render-status');
+  btn.style.display='none'; rs.style.display='block'; rs.textContent='Starting render — pulling media from R2…';
+  try{
+    const sr=await fetch('/local-bridge/r2-render',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({xml:state.xml,name:state.xmlName})});
+    const started=await safeJson(sr);
+    if(!started.ok) throw new Error(started.error||'Render failed to start');
+    const done=await pollJob('/local-bridge/r2-render/status?id='+started.jobId, s=>{ rs.textContent='Rendering… '+s+'s'; });
+    rs.textContent='Render complete — '+(done.sizeBytes/1048576).toFixed(0)+' MB';
+    const a=document.createElement('a'); a.className='dl'; a.style.marginLeft='0'; a.style.marginTop='8px'; a.style.display='inline-block';
+    a.href='/local-bridge/r2-render/download?id='+started.jobId; a.textContent='Download MP4';
+    rs.appendChild(document.createElement('br')); rs.appendChild(a);
+  }catch(err){ rs.textContent='Render error: '+err.message; btn.style.display=''; }
+});
+
+
+function friendlyBroll(clip){
+  const p = clip.replace(/\.mp4$/i,'').split('_');
+  const i = p.findIndex(x=>/^broll$/i.test(x));
+  let t = (i>=0 && p[i+1]) ? p.slice(i+1).join(' ') : (p[3]||clip);
+  return t.replace(/([a-z0-9])([A-Z])/g,'$1 $2').replace(/\b(Gimbal|Drone|HandHeld|Handheld|Tripod|Steadicam|Aerial)\b/g,'').trim();
+}
+function shortTc(tc){ if(!tc) return ''; const parts=String(tc).split(':'); const sec=(parts.pop()||'0').split('.')[0]; const min=parts.pop()||'0'; const hr=parts.pop(); const mm=(hr&&+hr>0)?(+hr*60+ +min):+min; return mm+':'+sec.padStart(2,'0'); }
+
+const brollSel = new Map();   // selKey -> {stem,startTc,endTc}
+let brollXml=null, brollName=null;
+
+async function brollSearch(){
+  const q=document.getElementById('broll-q').value.trim();
+  const box=document.getElementById('broll-results');
+  const note=document.getElementById('broll-note');
+    const browseAll = !q;
+  box.innerHTML='<div class="broll-empty">Searching…</div>'; note.style.display='none';
+  const city=document.getElementById('broll-city').value.trim();
+  const date=document.getElementById('broll-date').value.trim();
+    let url='/local-bridge/r2-broll?company='+encodeURIComponent(COMPANY)
+    + (browseAll ? '&limit=500&floor=1&q=shot' : '&limit=24&q='+encodeURIComponent(q));
+  if(city) url+='&city='+encodeURIComponent(city);
+  if(date) url+='&date='+encodeURIComponent(date);
+  try{
+    const r=await fetch(url); const d=await safeJson(r);
+    brollSel.clear(); document.getElementById('broll-result').classList.remove('visible');
+    if(!d.ok){ box.innerHTML='<div class="broll-empty">'+esc(d.error||'Search failed')+'</div>'; updateBrollBar(); return; }
+    // Belt and braces: if the route ignores &company, drop anything that isn't ours.
+    d.results = (d.results||[]).filter(it => String(it.clip||'').split('_')[1] === COMPANY);
+    if(!d.results.length){ box.innerHTML='<div class="broll-empty">'+esc(d.note||'No matches.')+'</div>'; updateBrollBar(); return; }
+    if(d.note){ note.textContent=d.note; note.style.display='block'; }
+    const groups=[]; const gi={};
+    for(const it of d.results){ const key=it.clip; if(gi[key]==null){ gi[key]=groups.length; groups.push({clip:key,city:it.city,company:it.companyName||it.company,shots:[]}); } groups[gi[key]].shots.push(it); }
+    box.innerHTML='';
+    for(const g of groups){
+      const grp=document.createElement('div'); grp.className='clip-group';
+      const head=document.createElement('div'); head.className='clip-head';
+      head.innerHTML='<span>'+esc(friendlyBroll(g.clip))+'</span><span class="loc">'+esc([g.city,g.company].filter(Boolean).join(' · '))+'</span><span class="n">'+g.shots.length+' shot'+(g.shots.length>1?'s':'')+'</span>';
+      const reelKey=g.shots[0].mp4Key;
+      if(reelKey){
+        const dl=document.createElement('a');
+        dl.className='reel-dl-link';
+        dl.textContent='Download the reel';
+        dl.title='Download the full '+friendlyBroll(g.clip)+' master (large file)';
+        dl.href='/local-bridge/r2-reel?key='+encodeURIComponent(reelKey);
+        head.insertBefore(dl, head.querySelector('.n'));
+      }
+      grp.appendChild(head);
+      const grid=document.createElement('div'); grid.className='shot-grid';
+      for(const it of g.shots){
+        const stem=it.clip.replace('.mp4','');
+        const selKey=it.frameKey||(stem+':'+it.shotIndex);
+        const card=document.createElement('div'); card.className='shot-card';
+        const tc=shortTc(it.startTc)+(it.endTc?('–'+shortTc(it.endTc)):'');
+        const thumb=it.frameKey?('<img class="shot-thumb" loading="lazy" src="/local-bridge/r2-broll/thumb?key='+encodeURIComponent(it.frameKey)+'">'):'<div class="shot-thumb"></div>';
+        card.innerHTML=thumb+'<div class="shot-body"><div class="shot-tc">'+esc(tc)+'</div><div class="shot-subj">'+esc(it.subject||'')+'</div><div class="shot-score">'+(it.score*100).toFixed(0)+'% match</div></div>';
+        card.addEventListener('click',()=>{ if(brollSel.has(selKey)){ brollSel.delete(selKey); card.classList.remove('sel'); } else { brollSel.set(selKey,{stem:stem,startTc:it.startTc,endTc:it.endTc}); card.classList.add('sel'); } updateBrollBar(); });
+        grid.appendChild(card);
+      }
+      grp.appendChild(grid); box.appendChild(grp);
+    }
+    updateBrollBar();
+  }catch(err){ box.innerHTML='<div class="broll-empty">'+esc(err.message)+'</div>'; }
+}
+function updateBrollBar(){
+  document.getElementById('broll-seln').textContent = brollSel.size+' shot'+(brollSel.size===1?'':'s')+' selected';
+  document.getElementById('broll-actions').classList.toggle('on', brollSel.size>0);
+}
+async function assembleBroll(){
+  const picks=Array.from(brollSel.values());
+  if(!picks.length) return;
+  const btn=document.getElementById('broll-assemble'); btn.disabled=true; btn.textContent='Assembling…';
+  try{
+    const r=await fetch('/local-bridge/r2-broll-cut',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({picks:picks})});
+    const d=await safeJson(r);
+    if(!d.ok) throw new Error(d.error||'Assemble failed');
+    brollXml=d.xml; brollName='vdo_broll_cut';
+    const s=d.summary, secs=s.runtimeSeconds, mm=Math.floor(secs/60), ss=(secs%60).toFixed(1);
+    const xl=document.getElementById('broll-xml-dl'); xl.href=URL.createObjectURL(new Blob([d.xml],{type:'application/xml'})); xl.download=brollName+'.xml';
+    document.getElementById('broll-render-status').style.display='none';
+    document.getElementById('broll-render-btn').style.display='';
+    document.getElementById('broll-summary').innerHTML='<span class="k">RUNTIME</span>  '+mm+':'+String(ss).padStart(4,'0')+'   <span class="k">SHOTS</span>  '+s.pickCount;
+    document.getElementById('broll-result').classList.add('visible');
+  }catch(err){ alert('B-roll assemble error: '+err.message); }
+  finally{ btn.disabled=false; btn.textContent='Assemble b-roll cut'; }
+}
+async function brollRender(){
+  if(!brollXml) return;
+  const btn=document.getElementById('broll-render-btn'), rs=document.getElementById('broll-render-status');
+  btn.style.display='none'; rs.style.display='block'; rs.textContent='Starting render — pulling media from R2…';
+  try{
+    const sr=await fetch('/local-bridge/r2-render',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({xml:brollXml,name:brollName})});
+    const started=await safeJson(sr);
+    if(!started.ok) throw new Error(started.error||'Render failed to start');
+    const done=await pollJob('/local-bridge/r2-render/status?id='+started.jobId, s=>{ rs.textContent='Rendering… '+s+'s'; });
+    rs.textContent='Render complete — '+(done.sizeBytes/1048576).toFixed(0)+' MB';
+    const el=document.createElement('a'); el.className='dl'; el.style.display='inline-block'; el.style.marginTop='8px';
+    el.href='/local-bridge/r2-render/download?id='+started.jobId; el.textContent='Download MP4';
+    rs.appendChild(document.createElement('br')); rs.appendChild(el);
+  }catch(err){ rs.textContent='Render error: '+err.message; btn.style.display=''; }
+}
+
+document.querySelectorAll('.try button').forEach(b=>b.addEventListener('click',()=>{
+  document.getElementById('broll-q').value=b.dataset.q; brollSearch();
+}));
+document.getElementById('broll-btn').addEventListener('click', brollSearch);
+document.getElementById('broll-q').addEventListener('keydown', e=>{ if(e.key==='Enter') brollSearch(); });
+document.getElementById('broll-city').addEventListener('keydown', e=>{ if(e.key==='Enter') brollSearch(); });
+document.getElementById('broll-date').addEventListener('keydown', e=>{ if(e.key==='Enter') brollSearch(); });
+document.getElementById('broll-assemble').addEventListener('click', assembleBroll);
+document.getElementById('broll-render-btn').addEventListener('click', brollRender);
+
+loadLibrary();
+</script>
+</body>
+</html>
