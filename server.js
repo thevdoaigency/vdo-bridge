@@ -56,4 +56,4 @@ const server=http.createServer(async (req,res)=>{try{
  if(req.method==='GET'&&url.pathname==='/api/status'){const job=jobs.get(url.searchParams.get('id'));if(!job)return reply(res,404,{ok:false,error:'Job not found'});return reply(res,200,job);}
  reply(res,404,{ok:false,error:'Not found'});
  }catch(e){reply(res,400,{ok:false,error:e.message});}});
-server.listen(PORT,'127.0.0.1',()=>console.log(`VDO Bridge Local: http://localhost:${PORT}`));
+server.listen(PORT,'0.0.0.0',()=>console.log(`VDO Bridge listening on port ${PORT}`));
