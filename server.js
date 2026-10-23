@@ -5,6 +5,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const {generatePicks} = require('./lib/narrative');
 const {buildMultiSourceXml} = require('./lib/xml-builder');
+const renderJobs = require('./lib/render-jobs');
 
 const PORT=Number(process.env.PORT || 3030);
 const HOME=path.join(__dirname,'projects');
@@ -20,6 +21,8 @@ function load(project,stems){const dir=dirFor(project),map={},transcripts={};for
 function serve(res){const file=path.join(__dirname,'public','index.html');res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});fs.createReadStream(file).pipe(res);}
 const server=http.createServer(async (req,res)=>{try{
  const url=new URL(req.url,'http://localhost');
+ if(url.pathname.startsWith('/api/render'))return await renderJobs.route(req,res,url);
+ if(!renderJobs.requireBrowser(req,res))return;
  if(req.method==='GET'&&url.pathname==='/')return serve(res);
  if(req.method==='GET'&&url.pathname==='/api/projects'){return reply(res,200,{ok:true,projects:fs.readdirSync(HOME,{withFileTypes:true}).filter(e=>e.isDirectory()).map(e=>e.name)});}
  if(req.method==='GET'&&url.pathname==='/api/library')return reply(res,200,{ok:true,pairs:list(url.searchParams.get('project')||'Default')});
