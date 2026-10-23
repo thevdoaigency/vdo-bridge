@@ -6,7 +6,6 @@ const crypto = require('node:crypto');
 const {generatePicks} = require('./lib/narrative');
 const {buildMultiSourceXml} = require('./lib/xml-builder');
 const {buildFullInterviewsXml} = require('./lib/full-interview');
-const {sendXml} = require('./lib/email-editor');
 const renderJobs = require('./lib/render-jobs');
 
 const PORT=Number(process.env.PORT || 3030);
@@ -72,7 +71,8 @@ const server=http.createServer(async(req,res)=>{try{
  if(req.method==='POST'&&url.pathname==='/api/generate'){
   const b=await bodyJSON(req),project=safeName(b.project||'Default');
   const stems=b.selectedFiles;if(!Array.isArray(stems)||!stems.length)throw Error('Select at least one interview');
-  const brief=String(b.brief||'').trim(),wholeInterview=Boolean(b.wholeInterview)||brief.length===0;
+  const brief=String(b.brief||'').trim(),wholeInterview=Boolean(b.wholeInterview);
+  if(!wholeInterview&&!brief)throw Error('Enter a creative brief or select Full interview(s).');
   const target=Number(b.targetMinutes||1);
   if(!wholeInterview && (!Number.isFinite(target)||target<0.25||target>90))throw Error('Target must be between 0.25 and 90 minutes');
   const {map,transcripts}=load(project,stems);
@@ -88,11 +88,6 @@ const server=http.createServer(async(req,res)=>{try{
    job.status='done';job.result={...assembled,fileName:name,picks};
   }catch(e){job.status='error';job.error=e.message;console.error(e);}finally{job.finished=Date.now();}})();
   return reply(res,200,{ok:true,jobId});
- }
- if(req.method==='POST'&&url.pathname==='/api/email-xml'){
-   const b=await bodyJSON(req);
-   const sent=await sendXml({to:b.to||'brandon@thevdoaigency.com',project:b.project,fileName:b.fileName,xml:b.xml});
-   return reply(res,200,{ok:true,...sent});
  }
  if(req.method==='GET'&&url.pathname==='/api/status'){
    const job=jobs.get(url.searchParams.get('id'));if(!job)return reply(res,404,{ok:false,error:'Job not found'});return reply(res,200,job);
