@@ -18,20 +18,20 @@ button{background:var(--gold);color:#16120d;border:0;padding:12px 18px;font:600 
 .pair{padding:11px 0;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center;overflow-wrap:anywhere}.pair label{flex:1;min-width:0;margin:0;display:flex;align-items:center;gap:9px;text-transform:none;letter-spacing:normal;font-size:14px;color:var(--ink);cursor:pointer}.pair label input{flex:0 0 auto}
 .pair details{position:relative}.pair summary{color:var(--muted);cursor:pointer;font-size:12px}.manage{display:flex;flex-wrap:wrap;gap:6px;padding:8px 0}.manage button{padding:6px 8px}
 .muted{color:var(--muted);font-size:13px}.note{color:var(--gold);font-size:13px;margin:10px 0 15px}.warning{color:var(--danger)}
-#status,#upload-status,#project-status,#email-status{white-space:pre-wrap;margin-top:12px}#result{display:none;border-top:1px solid var(--gold);margin-top:20px;padding-top:18px}
+#status,#upload-status,#project-status{white-space:pre-wrap;margin-top:12px}#result{display:none;border-top:1px solid var(--gold);margin-top:20px;padding-top:18px}
 .action-link{display:inline-block;background:var(--gold);padding:12px 18px;color:#17120d;text-decoration:none;font-weight:bold;font-size:13px}
 pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;color:var(--muted)}.section-rule{border-top:1px solid var(--line);padding-top:18px;margin-top:24px}
 @media(max-width:760px){.grid{grid-template-columns:1fr}}
 </style></head>
-<body><header><h1>VDO <em>Bridge</em></h1><small>THE VDO AIGENCY / NARRATIVE + LUCIDLINK RENDER</small></header>
-<main><p class="intro">Organize interview transcripts by project, build Premiere edits, or export full interviews. Render MP4 previews on the Mac Mini.</p>
+<body><header><h1>VDO <em>Bridge</em></h1><small>THE VDO AIGENCY / NARRATIVE EDITING</small></header>
+<main><p class="intro">Organize interviews by project, create Premiere edits, and export MP4 previews.</p>
 <div class="grid"><section class="panel"><h2>01 / Projects &amp; interviews</h2>
 <label for="project">Project</label>
 <div class="row"><select id="project" class="grow" aria-label="Select project"><option value="Default">Default</option></select><button class="outline small" id="new-project">+ New</button></div>
 <div class="row" style="justify-content:space-between;margin-top:10px"><span class="muted">Each project has its own interview library.</span><button class="danger small" id="delete-project">Delete project</button></div>
 <div id="project-status" class="muted" role="status"></div>
 <div class="drop" id="drop"><strong>Drop matching JSON + XML pairs here</strong><div>or click to choose files (multiple interviews supported)</div><input type="file" id="files" multiple accept=".json,.xml" hidden></div>
-<p class="muted">Only transcript pairs are uploaded to Railway. Source camera and audio files remain on LucidLink. Railway storage is temporary unless you configure a persistent volume.</p>
+<p class="muted">Upload matching interview transcript and timeline files.</p>
 <div id="upload-status" class="muted" role="status"></div>
 <div class="row" style="justify-content:space-between;margin-top:25px"><h2 style="margin:0">Available interviews</h2><button class="outline small" id="refresh">Refresh</button></div>
 <div id="library" class="muted" style="margin-top:12px">Loading interviews…</div>
@@ -39,14 +39,12 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;color:var(--muted
 <section class="panel"><h2>02 / Story</h2>
 <label for="brief">Creative brief</label>
 <textarea id="brief" placeholder="Build a 90-second documentary story. Open with the challenge, develop the stakes, close with the outcome. Keep soundbites verbatim."></textarea>
-<p class="note">Leave the prompt empty to export the entire selected interview(s), untrimmed, without AI.</p>
 <label for="minutes">Target duration (minutes; for AI cuts only)</label><input id="minutes" type="number" value="1.5" min="0.25" max="90" step="0.5">
 <div class="row" style="margin:20px 0"><label><input type="checkbox" id="whole"> Full interview(s), ignoring the prompt</label></div>
 <button id="generate">Generate Premiere XML</button>
 <div id="status" class="muted" role="status"></div>
-<div id="result"><h2>Cut ready</h2><div class="row"><a id="download" class="action-link" href="#" download="VDO_Bridge_Cut.xml">Download XML</a><button id="render-mp4">Render MP4 on Mac Mini</button></div>
+<div id="result"><h2>Cut ready</h2><div class="row"><a id="download" class="action-link" href="#" download="VDO_Bridge_Cut.xml">Download XML</a><button id="render-mp4">Make MP4</button></div>
 <p class="muted" id="render-status" role="status"></p><a id="mp4-download" class="action-link" href="#" style="display:none">Download MP4</a>
-<div class="section-rule"><h2>03 / Send to editor</h2><label for="editor-email">Editor email</label><input id="editor-email" type="email" value="brandon@thevdoaigency.com" autocomplete="email" spellcheck="false"><div class="row" style="margin-top:12px"><button class="outline" id="send-xml">Send XML to Editor</button></div><p id="email-status" class="muted" role="status"></p></div>
 <pre id="summary"></pre>
 </div></section></div>
 </main><script>
@@ -124,33 +122,29 @@ $('whole').addEventListener('change',()=>{$('brief').disabled=$('whole').checked
 $('generate').addEventListener('click',async()=>{
  const selectedFiles=[...document.querySelectorAll('#library .pair input:checked')].map(c=>c.value);
  if(!selectedFiles.length){status('status','Select at least one interview.',true);return;}
- const wholeInterview=$('whole').checked||!$('brief').value.trim();$('generate').disabled=true;clearResult();status('status',wholeInterview?'Preparing entire interview…':'Preparing story…');
+ const wholeInterview=$('whole').checked;
+ if(!wholeInterview&&!$('brief').value.trim()){status('status','Enter a creative brief or select Full interview(s).',true);return;}
+ $('generate').disabled=true;clearResult();status('status',wholeInterview?'Preparing entire interview…':'Preparing story…');
  try{
   const s=await post('/api/generate',{project:project(),selectedFiles,brief:$('brief').value,targetMinutes:Number($('minutes').value),wholeInterview});
   let result;
   for(;;){await new Promise(resolve=>setTimeout(resolve,1500));const j=await api('/api/status?id='+encodeURIComponent(s.jobId));if(j.status==='running'){status('status',wholeInterview?'Assembling complete interview(s)…':'Building narrative…');continue;}if(j.status==='error')throw Error(j.error);result=j.result;break;}
   currentXml=result.xml;currentXmlName=result.fileName;currentUrl=URL.createObjectURL(new Blob([result.xml],{type:'application/xml'}));
-  $('download').href=currentUrl;$('download').download=result.fileName;$('result').style.display='block';$('mp4-download').style.display='none';status('render-status','');status('email-status','');
-  $('summary').textContent=`Runtime: ${result.summary.runtimeSeconds.toFixed(1)} seconds\nMode: ${wholeInterview?'Complete interview(s), no AI':result.summary.pickCount+' narrative picks'}\nModel: ${result.summary.model}\nWorking XML stored on Railway (temporary). Download to keep a copy.`;
+  $('download').href=currentUrl;$('download').download=result.fileName;$('result').style.display='block';$('mp4-download').style.display='none';status('render-status','');
+  $('summary').textContent=`Runtime: ${result.summary.runtimeSeconds.toFixed(1)} seconds\nMode: ${wholeInterview?'Complete interview(s), no AI':result.summary.pickCount+' narrative picks'}\nModel: ${result.summary.model}\nDownload the XML to keep a copy.`;
   status('status','Finished.');
  }catch(e){status('status','Error: '+e.message,true)}finally{$('generate').disabled=false}
 });
-$('send-xml').addEventListener('click',async()=>{
- if(!currentXml)return;const to=$('editor-email').value.trim();if(!to){status('email-status','Enter an editor email address.',true);return}
- const btn=$('send-xml');btn.disabled=true;status('email-status','Sending XML attachment to '+to+'…');
- try{await post('/api/email-xml',{to,project:project(),xml:currentXml,fileName:currentXmlName});status('email-status','XML sent to '+to+'.')}
- catch(e){status('email-status','Email not sent: '+e.message,true)}finally{btn.disabled=false}
-});
 $('render-mp4').addEventListener('click',async()=>{
- if(!currentXml)return;const btn=$('render-mp4');btn.disabled=true;$('mp4-download').style.display='none';status('render-status','Queuing render on Mac Mini…');
+ if(!currentXml)return;const btn=$('render-mp4');btn.disabled=true;$('mp4-download').style.display='none';status('render-status','Video processing');
  try{
   const r=await post('/api/render',{xml:currentXml,name:currentXmlName||'VDO_Bridge_Cut',preset:'draft'});
   for(;;){await new Promise(resolve=>setTimeout(resolve,3500));const j=await api('/api/render/status?id='+encodeURIComponent(r.id));
    if(j.status==='error')throw Error(j.error||'Rendering failed');
-   if(j.status==='ready'){status('render-status','MP4 ready. It is also saved on LucidLink. Railway download is temporary.');const dl=$('mp4-download');dl.href='/api/render/download?id='+encodeURIComponent(r.id);dl.download=j.fileName||'VDO_Bridge_Cut.mp4';dl.style.display='inline-block';break;}
-   status('render-status',j.status==='queued'?(j.workerOnline?'Waiting for Mac Mini to accept job…':'Waiting for Mac Mini (worker offline)…'):j.status==='uploading'?'Mac Mini is uploading preview…':'Rendering MP4 on Mac Mini…');
+   if(j.status==='ready'){status('render-status','MP4 ready.');const dl=$('mp4-download');dl.href='/api/render/download?id='+encodeURIComponent(r.id);dl.download=j.fileName||'VDO_Bridge_Cut.mp4';dl.style.display='inline-block';break;}
+   status('render-status','Video processing');
   }
- }catch(e){status('render-status','Render error: '+e.message,true)}finally{btn.disabled=false}
+ }catch(e){console.error('Video processing failed:',e);status('render-status','Video processing failed. Please try again.',true)}finally{btn.disabled=false}
 });
 projects().catch(e=>{status('project-status',e.message,true);refresh()});
 </script></body></html>
