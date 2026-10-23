@@ -3,7 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "description": "Local interview narrative editor for Adobe Premiere Pro",
-  "scripts": {"start": "node server.js"},
-  "engines": {"node": ">=20"},
-  "dependencies": {"@xmldom/xmldom": "^0.9.8"}
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@xmldom/xmldom": "^0.9.8",
+    "nodemailer": "^10.2.0"
+  }
 }
