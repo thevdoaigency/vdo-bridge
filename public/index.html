@@ -1,33 +1,156 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VDO Bridge — Narrative</title><style>
-:root{--bg:#0d0d0d;--panel:#171615;--ink:#eee9df;--muted:#a49a89;--line:#3b3426;--gold:#e8b84b}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,sans-serif}header{border-bottom:1px solid var(--gold);padding:23px max(25px,calc((100vw - 1050px)/2))}h1{font:normal 32px Georgia,serif;margin:0}h1 em{color:var(--gold)}header small{color:var(--muted)}main{max-width:1050px;margin:40px auto;padding:0 22px}h2{font-size:13px;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);margin:0 0 14px}.intro{color:var(--muted);margin:0 0 36px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:30px}.panel{padding:26px;background:var(--panel);border:1px solid var(--line);min-width:0}label{display:block;color:var(--muted);font-size:12px;margin:20px 0 8px;text-transform:uppercase;letter-spacing:.08em}input,textarea{font:inherit;color:var(--ink);background:#0c0c0c;border:1px solid #554c3a;padding:12px;width:100%;border-radius:0}textarea{min-height:200px;resize:vertical}input[type=checkbox]{width:auto;accent-color:var(--gold)}input[type=number]{width:110px}.row{display:flex;align-items:center;gap:15px;flex-wrap:wrap}.row label{margin:0;letter-spacing:normal;text-transform:none;font-size:14px}.drop{border:1px dashed var(--gold);padding:30px;text-align:center;cursor:pointer;color:var(--muted);margin-top:18px}.drop strong{color:var(--ink)}.drop.over{background:#332a18}button{background:var(--gold);color:#16120d;border:0;padding:12px 20px;font:600 13px system-ui;cursor:pointer}button:disabled{opacity:.35;cursor:not-allowed}.outline{background:transparent;color:var(--gold);border:1px solid var(--gold)}.pair{padding:12px 0;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:center;overflow-wrap:anywhere}.muted{color:var(--muted);font-size:13px}#status{white-space:pre-wrap;color:var(--muted);margin-top:16px}#result{display:none;border-top:1px solid var(--gold);margin-top:20px;padding-top:18px}#result a{display:inline-block;background:var(--gold);padding:12px 18px;color:#17120d;text-decoration:none;font-weight:bold}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;color:var(--muted)}@media(max-width:760px){.grid{grid-template-columns:1fr}}
-</style></head><body><header><h1>VDO <em>Bridge</em></h1><small>THE VDO AIGENCY / NARRATIVE + LUCIDLINK RENDER</small></header><main><p class="intro">Import interview transcripts and Premiere source XMLs. Describe the story. Generate an editable Premiere timeline.</p><div class="grid"><section class="panel"><h2>01 / Interviews</h2><label for="project">Project</label><input id="project" value="Default" placeholder="Project name"><div class="drop" id="drop"><strong>Drop matching JSON + XML pairs here</strong><div>or click to choose files (multiple interviews supported)</div><input type="file" id="files" multiple accept=".json,.xml" hidden></div><p class="muted">JSON/XML interview pairs are stored on Railway temporarily. Keep your own originals; source footage stays on LucidLink.</p><div id="upload-status" class="muted"></div><div class="row" style="justify-content:space-between;margin-top:25px"><h2>Available interviews</h2><button class="outline" id="refresh">Refresh</button></div><div id="library" class="muted">No interviews loaded.</div></section><section class="panel"><h2>02 / Story</h2><label for="brief">Creative brief</label><textarea id="brief" placeholder="Build a 90-second documentary story. Open with the challenge, develop the stakes, close with the outcome. Use only the interviewee's voice. Keep soundbites verbatim."></textarea><label for="minutes">Target duration (minutes)</label><input id="minutes" type="number" value="1.5" min="0.25" max="90" step="0.5"><div class="row" style="margin:20px 0"><label><input type="checkbox" id="whole"> Assemble full interviews (no AI)</label></div><button id="generate">Generate Premiere XML</button><div id="status" role="status"></div><div id="result"><h2>Cut ready</h2><a id="download" href="#" download="VDO_Bridge_Cut.xml">Download XML</a><button id="render-mp4" style="margin-left:12px">Render MP4 on Mac Mini</button><p class="muted" id="render-status" role="status"></p><a id="mp4-download" href="#" style="display:none">Download MP4</a><pre id="summary"></pre></div></section></div></main><script>
-const $=id=>document.getElementById(id);let currentUrl=null, currentXml=null,currentXmlName=null;
-async function api(route, options={}){const r=await fetch(route,options),j=await r.json();if(!r.ok||j.ok===false)throw Error(j.error||'Request failed');return j}
-const project=()=> $('project').value.trim()||'Default';
-async function refresh(){try{const d=await api('/api/library?project='+encodeURIComponent(project()));const el=$('library');el.replaceChildren();if(!d.pairs.length){el.textContent='No matching interview pairs yet.';return;}for(const p of d.pairs){const row=document.createElement('label');row.className='pair';const cb=document.createElement('input');cb.type='checkbox';cb.value=p.stem;cb.checked=true;row.append(cb,document.createTextNode(p.stem));el.append(row)}}catch(e){$('library').textContent=e.message}}
-async function uploadFiles(files){const groups=new Map();for(const file of files){const m=file.name.match(/^(.*)\.(json|xml)$/i);if(!m)continue;const stem=m[1],group=groups.get(stem)||{};group[m[2].toLowerCase()]=file;groups.set(stem,group);}let n=0,errors=[];for(const [stem,g] of groups){if(!g.json||!g.xml){errors.push(stem+': missing '+(!g.json?'JSON':'XML'));continue;}try{$('upload-status').textContent='Importing '+stem+'…';await api('/api/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({project:project(),stem,json:await g.json.text(),xml:await g.xml.text()})});n++;}catch(e){errors.push(stem+': '+e.message)}}$('upload-status').textContent=n+' interview pair(s) saved locally.'+(errors.length?' Problems: '+errors.join('; '):'');await refresh()}
-$('drop').addEventListener('click',()=> $('files').click());$('files').addEventListener('change',e=>uploadFiles([...e.target.files]));$('drop').addEventListener('dragover',e=>{e.preventDefault();$('drop').classList.add('over')});$('drop').addEventListener('dragleave',()=> $('drop').classList.remove('over'));$('drop').addEventListener('drop',e=>{e.preventDefault();$('drop').classList.remove('over');uploadFiles([...e.dataTransfer.files])});$('refresh').addEventListener('click',refresh);$('project').addEventListener('change',refresh);$('whole').addEventListener('change',()=>{$('brief').disabled=$('whole').checked});
-$('generate').addEventListener('click',async()=>{const selectedFiles=[...document.querySelectorAll('#library input:checked')].map(c=>c.value);$('generate').disabled=true;$('result').style.display='none';$('status').textContent='Preparing story…';try{const s=await api('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({project:project(),selectedFiles,brief:$('brief').value,targetMinutes:Number($('minutes').value),wholeInterview:$('whole').checked})});let result;for(;;){await new Promise(resolve=>setTimeout(resolve,1500));const j=await api('/api/status?id='+encodeURIComponent(s.jobId));if(j.status==='running'){$('status').textContent='Building narrative…';continue;}if(j.status==='error')throw Error(j.error);result=j.result;break;}currentXml=result.xml;currentXmlName=result.fileName;if(currentUrl)URL.revokeObjectURL(currentUrl);currentUrl=URL.createObjectURL(new Blob([result.xml],{type:'application/xml'}));$('download').href=currentUrl;$('download').download=result.fileName;$('result').style.display='block';$('mp4-download').style.display='none';$('render-status').textContent='';$('summary').textContent=`Runtime: ${result.summary.runtimeSeconds.toFixed(1)} seconds\nPicks: ${result.summary.pickCount}\nModel: ${result.summary.model}\nWorking XML stored on Railway (temporary). Download to keep a copy.`;$('status').textContent='Finished.';}catch(e){$('status').textContent='Error: '+e.message}finally{$('generate').disabled=false}});
-$('render-mp4').addEventListener('click',async()=>{
- if(!currentXml)return;
- const btn=$('render-mp4');btn.disabled=true;
- const display=$('render-status');$('mp4-download').style.display='none';display.textContent='Queuing render on Mac Mini…';
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VDO Bridge — Narrative</title>
+<style>
+:root{--bg:#0d0d0d;--panel:#171615;--ink:#eee9df;--muted:#a49a89;--line:#3b3426;--gold:#e8b84b;--danger:#ec8178}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,sans-serif}
+header{border-bottom:1px solid var(--gold);padding:23px max(25px,calc((100vw - 1050px)/2))}
+h1{font:normal 32px Georgia,serif;margin:0}h1 em{color:var(--gold)}header small{color:var(--muted)}
+main{max-width:1050px;margin:40px auto;padding:0 22px}h2{font-size:13px;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);margin:0 0 14px}.intro{color:var(--muted);margin:0 0 36px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:30px}.panel{padding:26px;background:var(--panel);border:1px solid var(--line);min-width:0}
+label{display:block;color:var(--muted);font-size:12px;margin:20px 0 8px;text-transform:uppercase;letter-spacing:.08em}
+input,textarea,select{font:inherit;color:var(--ink);background:#0c0c0c;border:1px solid #554c3a;padding:12px;width:100%;border-radius:0}
+select{min-width:0}option{color:var(--ink);background:#171615}textarea{min-height:188px;resize:vertical}input[type=checkbox]{width:auto;accent-color:var(--gold)}input[type=number]{width:110px}
+.row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.row label{margin:0;letter-spacing:normal;text-transform:none;font-size:14px}.grow{flex:1;min-width:160px}
+.drop{border:1px dashed var(--gold);padding:30px;text-align:center;cursor:pointer;color:var(--muted);margin-top:18px}.drop strong{color:var(--ink)}.drop.over{background:#332a18}
+button{background:var(--gold);color:#16120d;border:0;padding:12px 18px;font:600 13px system-ui;cursor:pointer}button:disabled{opacity:.4;cursor:not-allowed}
+.outline{background:transparent;color:var(--gold);border:1px solid var(--gold)}.small{padding:7px 10px;font-size:12px}.danger{background:transparent;color:var(--danger);border:1px solid #81403c}
+.pair{padding:11px 0;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center;overflow-wrap:anywhere}.pair label{flex:1;min-width:0;margin:0;display:flex;align-items:center;gap:9px;text-transform:none;letter-spacing:normal;font-size:14px;color:var(--ink);cursor:pointer}.pair label input{flex:0 0 auto}
+.pair details{position:relative}.pair summary{color:var(--muted);cursor:pointer;font-size:12px}.manage{display:flex;flex-wrap:wrap;gap:6px;padding:8px 0}.manage button{padding:6px 8px}
+.muted{color:var(--muted);font-size:13px}.note{color:var(--gold);font-size:13px;margin:10px 0 15px}.warning{color:var(--danger)}
+#status,#upload-status,#project-status,#email-status{white-space:pre-wrap;margin-top:12px}#result{display:none;border-top:1px solid var(--gold);margin-top:20px;padding-top:18px}
+.action-link{display:inline-block;background:var(--gold);padding:12px 18px;color:#17120d;text-decoration:none;font-weight:bold;font-size:13px}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;color:var(--muted)}.section-rule{border-top:1px solid var(--line);padding-top:18px;margin-top:24px}
+@media(max-width:760px){.grid{grid-template-columns:1fr}}
+</style></head>
+<body><header><h1>VDO <em>Bridge</em></h1><small>THE VDO AIGENCY / NARRATIVE + LUCIDLINK RENDER</small></header>
+<main><p class="intro">Organize interview transcripts by project, build Premiere edits, or export full interviews. Render MP4 previews on the Mac Mini.</p>
+<div class="grid"><section class="panel"><h2>01 / Projects &amp; interviews</h2>
+<label for="project">Project</label>
+<div class="row"><select id="project" class="grow" aria-label="Select project"><option value="Default">Default</option></select><button class="outline small" id="new-project">+ New</button></div>
+<div class="row" style="justify-content:space-between;margin-top:10px"><span class="muted">Each project has its own interview library.</span><button class="danger small" id="delete-project">Delete project</button></div>
+<div id="project-status" class="muted" role="status"></div>
+<div class="drop" id="drop"><strong>Drop matching JSON + XML pairs here</strong><div>or click to choose files (multiple interviews supported)</div><input type="file" id="files" multiple accept=".json,.xml" hidden></div>
+<p class="muted">Only transcript pairs are uploaded to Railway. Source camera and audio files remain on LucidLink. Railway storage is temporary unless you configure a persistent volume.</p>
+<div id="upload-status" class="muted" role="status"></div>
+<div class="row" style="justify-content:space-between;margin-top:25px"><h2 style="margin:0">Available interviews</h2><button class="outline small" id="refresh">Refresh</button></div>
+<div id="library" class="muted" style="margin-top:12px">Loading interviews…</div>
+</section>
+<section class="panel"><h2>02 / Story</h2>
+<label for="brief">Creative brief</label>
+<textarea id="brief" placeholder="Build a 90-second documentary story. Open with the challenge, develop the stakes, close with the outcome. Keep soundbites verbatim."></textarea>
+<p class="note">Leave the prompt empty to export the entire selected interview(s), untrimmed, without AI.</p>
+<label for="minutes">Target duration (minutes; for AI cuts only)</label><input id="minutes" type="number" value="1.5" min="0.25" max="90" step="0.5">
+<div class="row" style="margin:20px 0"><label><input type="checkbox" id="whole"> Full interview(s), ignoring the prompt</label></div>
+<button id="generate">Generate Premiere XML</button>
+<div id="status" class="muted" role="status"></div>
+<div id="result"><h2>Cut ready</h2><div class="row"><a id="download" class="action-link" href="#" download="VDO_Bridge_Cut.xml">Download XML</a><button id="render-mp4">Render MP4 on Mac Mini</button></div>
+<p class="muted" id="render-status" role="status"></p><a id="mp4-download" class="action-link" href="#" style="display:none">Download MP4</a>
+<div class="section-rule"><h2>03 / Send to editor</h2><label for="editor-email">Editor email</label><input id="editor-email" type="email" value="brandon@thevdoaigency.com" autocomplete="email" spellcheck="false"><div class="row" style="margin-top:12px"><button class="outline" id="send-xml">Send XML to Editor</button></div><p id="email-status" class="muted" role="status"></p></div>
+<pre id="summary"></pre>
+</div></section></div>
+</main><script>
+'use strict';
+const $=id=>document.getElementById(id);
+let currentUrl=null,currentXml=null,currentXmlName=null;
+async function api(route,options={}){
+  const r=await fetch(route,options);let j;
+  try{j=await r.json()}catch{throw Error('Invalid response from Bridge');}
+  if(!r.ok||j.ok===false)throw Error(j.error||'Request failed');return j;
+}
+const post=(url,payload)=>api(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+const project=()=>$('project').value||'Default';
+function status(id,s,error=false){const el=$(id);el.textContent=s;el.classList.toggle('warning',error)}
+function clearResult(){currentXml=null;currentXmlName=null;if(currentUrl){URL.revokeObjectURL(currentUrl);currentUrl=null;}$('result').style.display='none';$('status').textContent=''}
+async function projects(preferred){
+  const data=await api('/api/projects');const dropdown=$('project'),keep=preferred||dropdown.value||'Default';dropdown.replaceChildren();
+  for(const name of data.projects){const option=document.createElement('option');option.value=name;option.textContent=name;dropdown.appendChild(option)}
+  if(data.projects.includes(keep))dropdown.value=keep;else dropdown.value=data.projects[0]||'Default';
+  await refresh();
+}
+function makeDelete(text,callback){const b=document.createElement('button');b.type='button';b.className='danger small';b.textContent=text;b.addEventListener('click',callback);return b}
+async function removeFile(stem,ext){
+  const what=ext?stem+'.'+ext:stem+' (JSON + XML)';
+  if(!confirm('Delete '+what+' from project "'+project()+'"? This cannot be undone.'))return;
+  try{const r=await post('/api/library/delete',{project:project(),stem,...(ext?{ext}:{})});
+    status('upload-status',r.deleted?('Deleted '+what+'.'):'No matching file was found.');clearResult();await refresh();
+  }catch(e){status('upload-status','Delete failed: '+e.message,true)}
+}
+async function refresh(){
  try{
-   const r=await api('/api/render',{method:'POST',headers:{'Content-Type':'application/json'},
-     body:JSON.stringify({xml:currentXml,name:currentXmlName||'VDO_Bridge_Cut',preset:'draft'})});
-   for(;;){await new Promise(resolve=>setTimeout(resolve,3500));
-     const j=await api('/api/render/status?id='+encodeURIComponent(r.id));
-     if(j.status==='error')throw Error(j.error||'Rendering failed');
-     if(j.status==='ready'){
-       display.textContent='MP4 ready. It is also saved on LucidLink. Railway download is temporary.';
-       const dl=$('mp4-download');dl.href='/api/render/download?id='+encodeURIComponent(r.id);
-       dl.download=j.fileName||'VDO_Bridge_Cut.mp4';dl.style.display='inline-block';break;
-     }
-     display.textContent=j.status==='queued'? (j.workerOnline?'Waiting for Mac Mini to accept job…':'Waiting for Mac Mini (worker offline)…'):
-       j.status==='uploading'?'Mac Mini is uploading preview…':'Rendering MP4 on Mac Mini…';
-   }
- }catch(e){display.textContent='Render error: '+e.message;}
- finally{btn.disabled=false;}
+  const d=await api('/api/library?project='+encodeURIComponent(project()));const el=$('library');el.replaceChildren();
+  if(!d.pairs.length&&!d.orphans.length){el.textContent='No interviews in this project yet.';return;}
+  for(const p of d.pairs){
+    const row=document.createElement('div');row.className='pair';const label=document.createElement('label');const cb=document.createElement('input');cb.type='checkbox';cb.value=p.stem;cb.checked=true;label.append(cb,document.createTextNode(p.stem));row.appendChild(label);
+    const details=document.createElement('details');const summary=document.createElement('summary');summary.textContent='Manage';const actions=document.createElement('div');actions.className='manage';
+    actions.append(makeDelete('Delete pair',()=>removeFile(p.stem)),makeDelete('Delete JSON',()=>removeFile(p.stem,'json')),makeDelete('Delete XML',()=>removeFile(p.stem,'xml')));
+    details.append(summary,actions);row.appendChild(details);el.appendChild(row);
+  }
+  if(d.orphans.length){const heading=document.createElement('p');heading.className='muted';heading.textContent='Unpaired files (missing matching JSON or XML):';el.appendChild(heading);
+   for(const f of d.orphans){const row=document.createElement('div');row.className='pair';const name=document.createElement('span');name.className='grow';name.textContent=f.stem+'.'+f.ext;row.append(name,makeDelete('Delete file',()=>removeFile(f.stem,f.ext)));el.appendChild(row);}
+  }
+ }catch(e){status('upload-status','Could not load interviews: '+e.message,true)}
+}
+$('new-project').addEventListener('click',async()=>{
+ const name=prompt('New project name:');if(name===null||!name.trim())return;
+ try{const result=await post('/api/projects/create',{name:name.trim()});await projects(result.project);clearResult();status('project-status','Created project: '+result.project)}
+ catch(e){status('project-status','Could not create project: '+e.message,true)}
 });
-refresh();
+$('delete-project').addEventListener('click',async()=>{
+ const name=project(),typed=prompt('Permanently delete project "'+name+'" and ALL its uploaded JSON/XML files and generated XMLs?\n\nType the project name to confirm:');
+ if(typed!==name)return;
+ try{await post('/api/projects/delete',{project:name});clearResult();await projects('Default');status('project-status','Deleted project: '+name)}
+ catch(e){status('project-status','Delete failed: '+e.message,true)}
+});
+$('project').addEventListener('change',()=>{clearResult();status('project-status','');status('upload-status','');refresh()});
+async function uploadFiles(files){
+ const groups=new Map();for(const file of files){const m=file.name.match(/^(.*)\.(json|xml)$/i);if(!m)continue;const stem=m[1],g=groups.get(stem)||{};g[m[2].toLowerCase()]=file;groups.set(stem,g)}
+ let n=0;const errors=[];
+ for(const [stem,g] of groups){
+  if(!g.json||!g.xml){errors.push(stem+': missing '+(!g.json?'JSON':'XML'));continue;}
+  try{status('upload-status','Importing '+stem+'…');await post('/api/upload',{project:project(),stem,json:await g.json.text(),xml:await g.xml.text()});n++}
+  catch(e){errors.push(stem+': '+e.message)}
+ }
+ status('upload-status',n+' interview pair(s) uploaded to '+project()+'.'+(errors.length?' Problems: '+errors.join('; '):''),Boolean(errors.length));
+ $('files').value='';await refresh();
+}
+$('drop').addEventListener('click',()=>$('files').click());
+$('files').addEventListener('change',e=>uploadFiles([...e.target.files]));
+$('drop').addEventListener('dragover',e=>{e.preventDefault();$('drop').classList.add('over')});
+$('drop').addEventListener('dragleave',()=>$('drop').classList.remove('over'));
+$('drop').addEventListener('drop',e=>{e.preventDefault();$('drop').classList.remove('over');uploadFiles([...e.dataTransfer.files])});
+$('refresh').addEventListener('click',refresh);
+$('whole').addEventListener('change',()=>{$('brief').disabled=$('whole').checked;$('minutes').disabled=$('whole').checked});
+$('generate').addEventListener('click',async()=>{
+ const selectedFiles=[...document.querySelectorAll('#library .pair input:checked')].map(c=>c.value);
+ if(!selectedFiles.length){status('status','Select at least one interview.',true);return;}
+ const wholeInterview=$('whole').checked||!$('brief').value.trim();$('generate').disabled=true;clearResult();status('status',wholeInterview?'Preparing entire interview…':'Preparing story…');
+ try{
+  const s=await post('/api/generate',{project:project(),selectedFiles,brief:$('brief').value,targetMinutes:Number($('minutes').value),wholeInterview});
+  let result;
+  for(;;){await new Promise(resolve=>setTimeout(resolve,1500));const j=await api('/api/status?id='+encodeURIComponent(s.jobId));if(j.status==='running'){status('status',wholeInterview?'Assembling complete interview(s)…':'Building narrative…');continue;}if(j.status==='error')throw Error(j.error);result=j.result;break;}
+  currentXml=result.xml;currentXmlName=result.fileName;currentUrl=URL.createObjectURL(new Blob([result.xml],{type:'application/xml'}));
+  $('download').href=currentUrl;$('download').download=result.fileName;$('result').style.display='block';$('mp4-download').style.display='none';status('render-status','');status('email-status','');
+  $('summary').textContent=`Runtime: ${result.summary.runtimeSeconds.toFixed(1)} seconds\nMode: ${wholeInterview?'Complete interview(s), no AI':result.summary.pickCount+' narrative picks'}\nModel: ${result.summary.model}\nWorking XML stored on Railway (temporary). Download to keep a copy.`;
+  status('status','Finished.');
+ }catch(e){status('status','Error: '+e.message,true)}finally{$('generate').disabled=false}
+});
+$('send-xml').addEventListener('click',async()=>{
+ if(!currentXml)return;const to=$('editor-email').value.trim();if(!to){status('email-status','Enter an editor email address.',true);return}
+ const btn=$('send-xml');btn.disabled=true;status('email-status','Sending XML attachment to '+to+'…');
+ try{await post('/api/email-xml',{to,project:project(),xml:currentXml,fileName:currentXmlName});status('email-status','XML sent to '+to+'.')}
+ catch(e){status('email-status','Email not sent: '+e.message,true)}finally{btn.disabled=false}
+});
+$('render-mp4').addEventListener('click',async()=>{
+ if(!currentXml)return;const btn=$('render-mp4');btn.disabled=true;$('mp4-download').style.display='none';status('render-status','Queuing render on Mac Mini…');
+ try{
+  const r=await post('/api/render',{xml:currentXml,name:currentXmlName||'VDO_Bridge_Cut',preset:'draft'});
+  for(;;){await new Promise(resolve=>setTimeout(resolve,3500));const j=await api('/api/render/status?id='+encodeURIComponent(r.id));
+   if(j.status==='error')throw Error(j.error||'Rendering failed');
+   if(j.status==='ready'){status('render-status','MP4 ready. It is also saved on LucidLink. Railway download is temporary.');const dl=$('mp4-download');dl.href='/api/render/download?id='+encodeURIComponent(r.id);dl.download=j.fileName||'VDO_Bridge_Cut.mp4';dl.style.display='inline-block';break;}
+   status('render-status',j.status==='queued'?(j.workerOnline?'Waiting for Mac Mini to accept job…':'Waiting for Mac Mini (worker offline)…'):j.status==='uploading'?'Mac Mini is uploading preview…':'Rendering MP4 on Mac Mini…');
+  }
+ }catch(e){status('render-status','Render error: '+e.message,true)}finally{btn.disabled=false}
+});
+projects().catch(e=>{status('project-status',e.message,true);refresh()});
 </script></body></html>
